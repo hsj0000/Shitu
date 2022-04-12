@@ -1,20 +1,20 @@
-package cn.jsu.projectmanage.controller;
+package cn.jsu.Shitu.controller;
 
-import cn.jsu.projectmanage.pojo.vo.CommonResult;
-import cn.jsu.projectmanage.pojo.vo.QuantumVo;
-import cn.jsu.projectmanage.pojo.vo.UserSignInfoVo;
-import cn.jsu.projectmanage.service.AttendanceService;
+import cn.jsu.Shitu.pojo.vo.CommonResult;
+import cn.jsu.Shitu.pojo.vo.QuantumVo;
+import cn.jsu.Shitu.pojo.vo.UserSignInfoVo;
+import cn.jsu.Shitu.service.GuideService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/attendance")
-public class AttendanceController {
+@RequestMapping("/guide")
+public class GuideController {
 
     @Autowired
-    AttendanceService attendanceService;
+    GuideService GuideService;
 
     @PostMapping("/signIn")
     @ApiOperation("用户签到")

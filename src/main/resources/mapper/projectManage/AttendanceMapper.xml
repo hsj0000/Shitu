@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="cn.jsu.projectmanage.dao.projectManage.AttendanceDao">
+
+    <select id="queryUserSignInfo"  parameterType="Integer" resultType="cn.jsu.projectmanage.pojo.dto.SignInfo">
+        SELECT si.`user_id`, si.`continue_sign`, si.`last_modify_time`, si.`sign_id`
+        FROM `sign_info` AS si
+        WHERE si.`user_id` = #{userId}
+    </select>
+
+    <insert id="insertUserSignInfo" parameterType="Integer" useGeneratedKeys="true" keyProperty="signId">
+        INSERT INTO `sign_info`
+                    (`user_id`, `continue_sign`, `last_modify_time`)
+        VALUES      (#{userId}, #{continueSign}, NOW())
+    </insert>
+
+    <insert id="insertUserSignDateRecord" parameterType="Integer" useGeneratedKeys="true" keyProperty="signRecordId">
+        INSERT INTO  `sign_info_record`
+                     (`sign_id`, `sign_year`, `sign_month`, `sign_day`)
+        VALUES       (#{signId}, YEAR(NOW()), MONTH(NOW()), DAY(NOW()))
+    </insert>
+
+    <insert id="insertUserSignTimeRecord">
+        INSERT INTO `sign_time_record`
+                    (`sign_record_id`, `sign_time`)
+        VALUES      (#{signRecordId},TIME(NOW()))
+    </insert>
+
+    <select id="querySignOutRecord" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `sign_info_record` AS sir
+        INNER JOIN `sign_time_record` AS str
+        ON sir.`sign_record_id` = str.`sign_record_id`
+        WHERE str.`signout_situation_id` = 1
+        AND sir.`sign_id` = #{signId}
+        AND sir.`sign_year` = YEAR(NOW())
+        AND sir.`sign_month` = MONTH(NOW())
+        AND sir.`sign_day` = DAY(NOW())
+    </select>
+
+    <update id="updateUserSignInfo">
+        UPDATE `sign_info`
+        SET `continue_sign` = #{continueSign},  `last_modify_time` = NOW()
+        WHERE `sign_id` = #{signId}
+    </update>
+
+    <update id="updateUserSignOutTimeRecord">
+        UPDATE `sign_time_record` AS str
+        SET str.`signout_time` = TIME(NOW()),
+            str.`signout_situation_id` = 3
+        WHERE str.`sign_time_id` = #{signTimeId}
+    </update>
+
+    <select id="querySignTimeId" resultType="Integer">
+        SELECT str.`sign_time_id`
+        FROM `sign_time_record` AS str
+        INNER JOIN `sign_info_record` AS sir
+        ON str.`sign_record_id` = sir.`sign_record_id`
+        WHERE sir.`sign_id` = #{signId}
+        AND sir.`sign_year`  = YEAR(NOW())
+        AND sir.`sign_month` = MONTH(NOW())
+        AND sir.`sign_day`   = DAY(NOW())
+        AND str.`signout_situation_id` = 1
+    </select>
+
+    <select id="querySignRecordId" resultType="Integer">
+        SELECT str.`sign_record_id`
+        FROM `sign_time_record` AS str
+        WHERE str.`sign_time_id` = #{signTimeId}
+    </select>
+
+    <select id="querySignRecordId1" resultType="Integer">
+        SELECT sir.`sign_record_id`
+        FROM `sign_info_record` AS sir
+        WHERE sir.`sign_id` = #{signId}
+        AND sir.`sign_year`  = YEAR(NOW())
+        AND sir.`sign_month` = MONTH(NOW())
+        AND sir.`sign_day`   = DAY(NOW())
+    </select>
+
+    <update id="updateTotalSignTime">
+        UPDATE `sign_info_record` AS sir
+        SET sir.`total_sign_time` = ADDTIME(sir.`total_sign_time`,(SELECT TIMEDIFF(str.`signout_time`, str.`sign_time`) FROM `sign_time_record` str WHERE str.`sign_time_id` = #{signTimeId}))
+        WHERE sir.`sign_record_id` =
+              (SELECT str.`sign_record_id` FROM `sign_time_record` AS str WHERE str.`sign_time_id` = #{signTimeId})
+    </update>
+
+    <select id="querySignInTime" resultType="Integer">
+        SELECT TIMESTAMPDIFF(MINUTE,last_modify_time,TIME(NOW()))
+        FROM `sign_info`
+        WHERE user_id = #{userId}
+    </select>
+
+    <update id="signOutStop">
+        UPDATE `sign_time_record`
+        SET signout_situation_id = 2
+        WHERE signout_situation_id = 1
+    </update>
+
+    <select id="yearSignOutTable" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(CONCAT(#{year},"-",sir.sign_month,"-",sir.sign_day), '%Y-%m-%d') AS DATE, SUM(sir.total_sign_time) AS COUNT
+        FROM `sign_info` AS si
+        INNER JOIN `sign_info_record` AS sir
+        ON si.sign_id = sir.sign_id
+        INNER JOIN `sign_time_record` AS str
+        ON sir.sign_record_id = str.sign_record_id
+        WHERE si.user_id = #{userId}
+        AND sir.sign_year = #{year}
+        AND str.`signout_situation_id` = 3
+        GROUP BY sir.sign_month,sir.sign_day
+    </select>
+    
+    <select id="queryOneDaySignInSituation" resultType="cn.jsu.projectmanage.pojo.vo.EachDaySignSituationVo">
+        SELECT ui.`user_id`,ui.`user_name`, ui.`user_account`,
+        sir.`absence_reason`,
+        CONCAT(IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%k"), 0),'小时'
+        ,IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%i"), 0),'分钟'
+        ,IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%s"), 0),'秒'
+        )
+        AS total_sign_time
+        FROM `user_info` AS ui
+        LEFT JOIN `sign_info` AS si
+        ON ui.`user_id` = si.`user_id`
+        LEFT JOIN
+        (
+        SELECT sir.`sign_id`,sir.`sign_record_id`, sir.`absence_reason`, sir.`total_sign_time`
+        FROM `sign_info_record` AS sir
+        WHERE sir.`sign_year` = DATE_FORMAT(#{date},"%Y")
+        AND sir.`sign_month`  = DATE_FORMAT(#{date},"%m")
+        AND sir.`sign_day`    = DATE_FORMAT(#{date},"%d")
+        ) AS sir
+        ON si.`sign_id` = sir.`sign_id`
+        WHERE ui.`user_type` != 1
+        <if test="userId !=null">
+            AND ui.`user_id` = #{userId}
+        </if>
+        GROUP BY ui.`user_id`
+        ORDER BY sir.total_sign_time DESC
+        <if test="pageOffset != null and limit != null">
+            LIMIT #{pageOffset},#{limit}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `user_info`
+        WHERE user_type != 1
+    </select>
+
+    <update id="updateAbsentCause">
+        UPDATE `sign_info_record` AS sir
+        INNER JOIN `sign_info` AS si
+        ON si.`sign_id` = sir.`sign_id`
+        SET absence_reason = #{absenceReason}
+        WHERE si.`user_id` = #{userId}
+          AND sir.`sign_year` = DATE_FORMAT(#{date},"%Y")
+          AND sir.`sign_month`= DATE_FORMAT(#{date},"%m")
+          AND sir.`sign_day`  = DATE_FORMAT(#{date},"%d")
+    </update>
+
+    <select id="queryOneDayUserSignData" resultType="java.lang.String">
+        SELECT CONCAT(str.sign_time,'->',IFNULL(str.signout_time,"未签退")) AS s
+        FROM `user_info` AS ui
+        LEFT JOIN `sign_info` AS si
+        ON ui.`user_id` = si.`user_id`
+        LEFT JOIN(
+                 SELECT sir.`sign_id`,sir.`sign_record_id`, sir.`absence_reason`, sir.`total_sign_time`
+                 FROM `sign_info_record` AS sir
+                 WHERE sir.`sign_year` = DATE_FORMAT(#{date},"%Y")
+                 AND sir.`sign_month`  = DATE_FORMAT(#{date},"%m")
+                 AND sir.`sign_day`    = DATE_FORMAT(#{date},"%d")
+                 ) AS sir
+       ON si.`sign_id` = sir.`sign_id`
+       LEFT JOIN `sign_time_record` AS str
+       ON sir.`sign_record_id` = str.`sign_record_id`
+       WHERE ui.`user_id` = #{userId}
+    </select>
+
+    <select id="queryTotalSignTimeByQuantum" resultType="cn.jsu.projectmanage.pojo.vo.EachDaySignSituationVo">
+        SELECT ui.`user_id`,ui.`user_name`, ui.`user_account`,
+        CONCAT(IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%k"), 0),'小时'
+        ,IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%i"), 0),'分钟'
+        ,IFNULL(TIME_FORMAT(sir.`total_sign_time`,"%s"), 0),'秒'
+        )
+        AS total_sign_time
+        FROM `user_info` AS ui
+        LEFT JOIN `sign_info` AS si
+        ON ui.`user_id` = si.`user_id`
+        LEFT JOIN
+        (
+        SELECT sir.`sign_id`,sir.`sign_record_id`,
+        SEC_TO_TIME(SUM(UNIX_TIMESTAMP(sir.`total_sign_time`) - UNIX_TIMESTAMP(DATE_FORMAT(CURDATE(), '%Y-%m-%d %00:%00:%00')))) AS total_sign_time
+        FROM `sign_info_record` AS sir
+        INNER JOIN
+        (SELECT * FROM `sign_info_record` AS sir WHERE
+        DATE_FORMAT(CONCAT(sir.`sign_year`,'-',sir.`sign_month`,'-',sir.`sign_day`),"%Y-%m-%d")
+        &gt;= DATE_FORMAT(#{quantumVo.startTime},"%Y-%m-%d")
+        AND DATE_FORMAT(CONCAT(sir.`sign_year`,'-',sir.`sign_month`,'-',sir.`sign_day`),"%Y-%m-%d")
+        &lt;= DATE_FORMAT(#{quantumVo.endTime},"%Y-%m-%d")) AS a
+        ON sir.`sign_record_id` =a.`sign_record_id`
+        GROUP BY sir.`sign_id`
+        ) AS sir
+        ON si.`sign_id` = sir.`sign_id`
+        WHERE ui.`user_type` != 1
+        GROUP BY ui.`user_id`
+        ORDER BY sir.total_sign_time DESC
+        <if test="quantumVo.pageOffset != null and quantumVo.limit != null">
+            LIMIT #{quantumVo.pageOffset},#{quantumVo.limit}
+        </if>
+    </select>
+
+    <select id="queryAbsenceTimeByQuantum" resultType="cn.jsu.projectmanage.pojo.vo.AbsenceVo">
+        SELECT ui.`user_id`,ui.`user_name`,ui.`user_account`,#{quantumVo.days}-IFNULL(days,0) AS days
+        FROM `user_info` AS ui
+        LEFT JOIN `sign_info` AS si
+        ON ui.`user_id` = si.`user_id`
+        LEFT JOIN
+        (SELECT sign_id,COUNT(*) AS days FROM `sign_info_record` AS sir
+         WHERE
+         DATE_FORMAT(CONCAT(sir.`sign_year`,'-',sir.`sign_month`,'-',sir.`sign_day`),"%Y-%m-%d")
+         &gt;= DATE_FORMAT(#{quantumVo.startTime},"%Y-%m-%d")
+         AND DATE_FORMAT(CONCAT(sir.`sign_year`,'-',sir.`sign_month`,'-',sir.`sign_day`),"%Y-%m-%d")
+         &lt;= DATE_FORMAT(#{quantumVo.endTime},"%Y-%m-%d")
+        GROUP BY sign_id)
+        AS sir
+        ON si.`sign_id` = sir.`sign_id`
+        WHERE ui.`user_type` != 1
+        ORDER BY days DESC
+    </select>
+</mapper>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="cn.jsu.projectmanage.dao.projectManage.UserDao">
+
+    <select id="queryAccount" parameterType="String" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `user_info` AS ui
+        WHERE ui.`user_account` = #{userAccount}
+    </select>
+
+    <select id="queryAccountInfo" resultType="cn.jsu.projectmanage.pojo.vo.LoginResponseVO">
+        SELECT ui.`user_id`, ui.`user_name`, ui.`user_account`, ui.`user_type`
+        FROM `user_info` AS ui
+        WHERE ui.`user_account` = #{userAccount}
+          AND ui.`user_password` = #{userPassword}
+    </select>
+
+    <insert id="register" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO `user_info`
+        (`user_name`, `user_type`, `user_account`, `user_password`, `user_phone`)
+        VALUES
+        (#{userName}, 2, #{userAccount}, #{userPassword}, #{userPhone})
+    </insert>
+
+    <select id="queryUserInfoAll" resultType="cn.jsu.projectmanage.pojo.dto.UserInfo">
+        SELECT ui.`user_id`, ui.`user_name`, ui.`user_account`, ui.`user_phone`
+        FROM `user_info` AS ui
+        <if test="pageOffset != null and limit != null">
+            LIMIT #{pageOffset},#{limit}
+        </if>
+    </select>
+
+    <select id="queryUserInfoById" resultType="cn.jsu.projectmanage.pojo.dto.UserInfo">
+        SELECT ui.`user_id`, ui.`user_name`, ui.`user_type`, ui.`user_account`, ui.`user_phone`
+        FROM `user_info` AS ui
+        WHERE ui.`user_id` = #{userId}
+    </select>
+
+    <update id="updateUserPassword">
+        UPDATE `user_info` AS ui
+        SET ui.`user_password` = #{userNewPassword}
+        WHERE ui.`user_id` = #{userId}
+    </update>
+
+    <select id="queryOldUserPassword" resultType="String">
+        SELECT ui.`user_password`
+        FROM `user_info` AS ui
+        WHERE ui.`user_id` = #{userId}
+    </select>
+
+    <select id="queryUserInfoGroup" resultType="cn.jsu.projectmanage.pojo.dto.UserInfo">
+        SELECT ui.`user_id`, ui.`user_name`, ui.`user_account`, ui.`user_phone`
+        FROM `user_info` AS ui
+        INNER JOIN `group_user` AS gu ON ui.`user_id` = gu.`user_id`
+        WHERE gu.`group_id` = #{groupId}
+        <if test="pageOffset != null and limit != null">
+            LIMIT #{pageOffset},#{limit}
+        </if>
+    </select>
+
+    <select id="count1" resultType="Integer">
+        SELECT count(*)
+        FROM `user_info`
+    </select>
+
+    <select id="count2" resultType="Integer">
+        SELECT count(*)
+        FROM `user_info` AS ui
+                 INNER JOIN `group_user` AS gu ON ui.`user_id` = gu.`user_id`
+        WHERE gu.`group_id` = #{groupId}
+    </select>
+</mapper>

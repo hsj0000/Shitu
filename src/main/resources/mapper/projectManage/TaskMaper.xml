@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="cn.jsu.projectmanage.dao.projectManage.TaskDao">
+
+    <insert id="insertTaskPool">
+        INSERT `task_pool` (`group_id`, `task_id`)
+        VALUES(#{groupId},#{taskId})
+    </insert>
+
+    <insert id="insertTaskInfo" useGeneratedKeys="true" keyProperty="taskId">
+            INSERT INTO `task`
+                 (`parent_id`, `task_name`, `task_describe`, `executor_id`,`group_id`, `project_id`, `priority`, `weight`, `status`,`task_createtime`             ,`task_startime`, `task_endtime`, `task_type`)
+            VALUES (#{parentId}, #{taskName}, #{taskDescribe},
+            <if test="taskType != 0">#{executorId} </if>
+            <if test="taskType == 0">#{executorId} </if>
+                                                                          ,#{groupId}, #{projectId}, #{priority}, #{weight}, 0      ,DATE_FORMAT(NOW(),"%Y-%m-%d"), #{taskStartime}, #{taskEndTime}, #{taskType})
+    </insert>
+
+    <select id="queryTaskById" parameterType="Integer" resultType="cn.jsu.projectmanage.pojo.dto.TaskInfo">
+        SELECT `task_id`, `parent_id`,
+               `task_name`, `task_describe`,
+               `executor_id`, `group_id`,
+               `project_id`, `weight`, `priority`,
+               `status`, `task_createtime`,
+               `task_startime`, `task_endtime`,
+               `task_type`, `task_completetime`
+        FROM task
+        WHERE task_id = #{taskId}
+    </select>
+
+    <select id="queryTaskUser" resultType="cn.jsu.projectmanage.pojo.vo.TaskInfoVO">
+        SELECT t.`task_id`, t.`parent_id`,t.`task_name`,
+        t.`task_describe`, t.`executor_id`,
+        t.`group_id`, t.`project_id`,
+        t.`priority`, t.`weight`,
+        t.`status`, t.`task_createtime`,
+        t.`task_startime`, t.`task_endtime`,
+        t.`task_type`, t.`task_completetime`
+        FROM `task` AS t
+        WHERE t.`executor_id` = #{userId}
+        <if test="status == 0 or status == 1 or status == 2">
+            AND t.`status` = #{status}
+        </if>
+    </select>
+
+    <delete id="deleteTaskPool" parameterType="Integer">
+        DELETE tp
+        FROM `task_pool` AS tp
+        WHERE tp.`task_id` = #{taskId}
+    </delete>
+
+    <delete id="deleteTask" parameterType="Integer">
+        DELETE t
+        FROM `task` AS t
+        WHERE t.`task_id` = #{taskId}
+        AND NOW()  <![CDATA[<]]>  t.`task_startime`
+    </delete>
+
+    <update id="updateTaskExecutor" parameterType="Integer">
+        UPDATE `task` AS t
+        SET t.`executor_id` = #{userId}
+        WHERE t.`task_id` = #{taskId}
+    </update>
+
+    <update id="updateTask">
+        UPDATE `task` AS t
+        SET  t.`priority` = #{priority}
+            ,t.`weight` = #{weight}
+            ,t.`task_name` = #{taskName}
+            ,t.`task_describe` = #{taskDescribe}
+            ,t.`task_endtime` = #{taskEndTime}
+        WHERE t.`task_id` = #{taskId}
+    </update>
+
+    <update id="updateTaskStatus">
+        UPDATE `task` AS t
+        SET t.`status` = #{status}
+        WHERE t.`task_id` = #{taskId}
+    </update>
+
+    <select id="queryJudgedInfoTaskByStatus" resultType="cn.jsu.projectmanage.pojo.dto.JudgeInfo">
+        SELECT j.`judge_id`, j.`judge_result`, j.`judge_opinion`, j.`task_id`, j.`report_describe`, j.`report_position`, j.`judge_user_id`, j.`status`, j.`create_time`, j.`end_time`
+        FROM `judge` AS j
+        WHERE j.`status` = #{status}
+            AND j.`task_id` = #{taskId}
+    </select>
+
+    <select id="queryJudgeInfoUserByStatus" resultType="cn.jsu.projectmanage.pojo.dto.JudgeInfo">
+        SELECT j.`judge_id`, j.`judge_result`, j.`judge_opinion`, j.`task_id`, j.`report_describe`, j.`report_position`, j.`judge_user_id`, j.`status`, j.`create_time`, j.`end_time`
+        FROM `judge` AS j
+        WHERE j.`status` = #{status}
+          AND j.`judge_user_id` = #{userId}
+    </select>
+
+    <select id="queryProjectTaskNumber" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `task` AS t
+        WHERE t.`task_type` = #{taskType}
+        <if test="projectId != 3">AND t.`project_id` = #{projectId}</if>
+        <if test="status != 3">AND t.`status` = #{status}</if>
+    </select>
+
+    <insert id="insertJudge" useGeneratedKeys="true" keyProperty="judgeId">
+        INSERT `judge`
+        (`task_id`, `report_describe`,
+         `report_position`, `status`,
+          `create_time`, `end_time`)
+        VALUES (#{taskId}, #{reportDescribe}
+                ,#{reportPosition}, #{status}
+                ,#{createTime}, #{endTime})
+    </insert>
+
+    <update id="Judge" useGeneratedKeys="true" keyProperty="judgeId">
+        UPDATE `judge` AS j
+        SET j.`judge_user_id` = #{judgeUserId}, j.`judge_result` = #{judgeResult},
+            j.`judge_opinion` = #{judgeOpinion}, j.`end_time` = #{endTime}
+        WHERE j.`judge_id` = #{judgeId}
+    </update>
+
+    <update id="updateJudgeStatus">
+        UPDATE `judge` AS j
+        SET j.`status` = #{status}
+        WHERE j.`judge_id` = #{judgeId}
+    </update>
+
+    <select id="queryTaskByGroupId" resultType="cn.jsu.projectmanage.pojo.vo.TaskInfoVO">
+        SELECT t.`task_id`, t.`parent_id`,
+               t.`task_name`,t.`task_describe`,
+               t.`executor_id`,
+               t.`group_id`, t.`project_id`,
+               t.`priority`, t.`weight`,
+               t.`status`, t.`task_createtime`,
+               t.`task_startime`, t.`task_endtime`,
+               t.`task_type`, t.`task_completetime`
+        FROM `task` AS t
+        <if test="groupId !=0">WHERE t.`group_id` = #{groupId}</if>
+    </select>
+
+    <select id="queryTaskPoolTasks" resultType="cn.jsu.projectmanage.pojo.dto.TaskInfo">
+        SELECT t.`task_id`,t.`task_name`,t.`task_describe`,t.`project_id`,t.`priority`,t.`weight`,t.`task_createtime`,t.`task_startime`,t.`task_endtime`
+        FROM `task` AS t
+        INNER JOIN `task_pool` AS tp
+        ON t.`task_id` = tp.`task_id`
+        <if test="projectId != 0">WHERE t.`project_id` = #{projectId}</if>
+    </select>
+
+</mapper>

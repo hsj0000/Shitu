@@ -1,0 +1,50 @@
+web:
+    upload-path: E:\\dict
+
+spring:
+    resources:
+        static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/,file:${web.upload-path}
+    main:
+        allow-bean-definition-overriding: true
+
+    datasource:
+        filesystem:
+            jdbc-url: jdbc:mysql://localhost:3306/filesystem?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=UTC&nullCatalogMeansCurrent=true
+            username: root
+            password: 1234
+            driver-class-name: com.mysql.cj.jdbc.Driver
+            type: com.alibaba.druid.pool.DruidDataSource
+            initialization-mode: always
+
+        projectmanage:
+            jdbc-url: jdbc:mysql://localhost:3306/projectmanagementLsp?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=UTC&nullCatalogMeansCurrent=true
+            username: root
+            password: 1234
+            driver-class-name: com.mysql.cj.jdbc.Driver
+            type: com.alibaba.druid.pool.DruidDataSource
+            initialization-mode: always
+
+
+#整合mybatis
+#mybatis:
+#    type-aliases-package: cn.jsu.projectmanage.pojo
+#    configuration:
+#        map-underscore-to-camel-case: true
+#        call-setters-on-nulls: true
+#        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    mapper-locations: classpath:mapper/*.xml
+
+
+
+logging:
+    level:
+        com.ascendant: debug
+    pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(-%5p)  %clr(${PID:- }){magenta} --- %clr([%15.15t]){faint} %highlight(%-80.80logger{300}){cyan} %clr(:) %m %n%wEx"
+
+
+swagger:
+    enabled: true
+
+server:
+    port: 8088

@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="cn.jsu.projectmanage.dao.projectManage.AttendanceDao1">
+
+    <select id="queryUserSignInfo"  parameterType="Integer" resultType="cn.jsu.projectmanage.pojo.dto.SignInfo">
+        SELECT si.`user_id`, si.`continue_sign`, si.`last_modify_time`, si.`sign_id`
+        FROM `sign_info` AS si
+        WHERE si.`user_id` = #{userId}
+    </select>
+
+    <insert id="insertUserSignInfo" parameterType="Integer" useGeneratedKeys="true" keyProperty="signId">
+        INSERT INTO `sign_info`
+            (`user_id`, `continue_sign`, `last_modify_time`)
+        VALUES      (#{userId}, #{continueSign}, NOW())
+    </insert>
+
+    <insert id="insertUserSignDateRecord" parameterType="Integer" useGeneratedKeys="true" keyProperty="signRecordId">
+        INSERT INTO  `sign_info_record`
+            (`sign_id`, `sign_year`, `sign_month`, `sign_day`)
+        VALUES       (#{signId}, YEAR(NOW()), MONTH(NOW()), DAY(NOW()))
+    </insert>
+
+    <insert id="insertUserSignTimeRecord">
+        INSERT INTO `sign_time_record`
+            (`sign_record_id`, `sign_time`, `time_quantum_id`)
+        VALUES      (#{signRecordId},
+                     TIME(NOW()),
+                     (
+                         SELECT CASE
+                                    WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 1)
+                         AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 1)
+                         THEN 1
+                         WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 2)
+                         AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 2)
+                         THEN 2
+                         WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 3)
+                         AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 3)
+                         THEN 3
+                         WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 4)
+                         AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 4)
+                         THEN 4
+                         ELSE 1 END
+                    )
+            )
+    </insert>
+
+    <select id="querySignOutRecord" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `sign_info_record` AS sir
+                 INNER JOIN `sign_time_record` AS str
+                            ON sir.`sign_record_id` = str.`sign_record_id`
+        WHERE str.`signout_situation_id` = 1
+          AND sir.`sign_id` = #{signId}
+          AND sir.`sign_year` = YEAR(NOW())
+          AND sir.`sign_month` = MONTH(NOW())
+          AND sir.`sign_day` = DAY(NOW())
+    </select>
+
+    <update id="updateUserSignInfo">
+        UPDATE `sign_info`
+        SET `continue_sign` = #{continueSign},  `last_modify_time` = NOW()
+        WHERE `sign_id` = #{signId}
+    </update>
+
+    <update id="updateUserSignOutTimeRecord">
+        UPDATE `sign_time_record` AS str
+        SET str.`signout_time` = TIME(NOW()),
+            str.`signout_situation_id` = 3
+        WHERE str.`sign_time_id` = #{signTimeId}
+    </update>
+
+    <select id="querySignTimeId" resultType="Integer">
+        SELECT str.`sign_time_id`
+        FROM `sign_time_record` AS str
+                 INNER JOIN `sign_info_record` AS sir
+                            ON str.`sign_record_id` = sir.`sign_record_id`
+        WHERE sir.`sign_id` = #{signId}
+          AND sir.`sign_year`  = YEAR(NOW())
+          AND sir.`sign_month` = MONTH(NOW())
+          AND sir.`sign_day`   = DAY(NOW())
+          AND str.`signout_situation_id` = 1
+    </select>
+
+    <select id="querySignRecordId" resultType="Integer">
+        SELECT str.`sign_record_id`
+        FROM `sign_time_record` AS str
+        WHERE str.`sign_time_id` = #{signTimeId}
+    </select>
+
+    <select id="querySignRecordId1" resultType="Integer">
+        SELECT sir.`sign_record_id`
+        FROM `sign_info_record` AS sir
+        WHERE sir.`sign_id` = #{signId}
+          AND sir.`sign_year`  = YEAR(NOW())
+          AND sir.`sign_month` = MONTH(NOW())
+          AND sir.`sign_day`   = DAY(NOW())
+    </select>
+
+    <update id="updateTotalSignTime">
+        UPDATE `sign_info_record` AS sir
+        SET sir.`total_sign_time` = ADDTIME(sir.`total_sign_time`,(SELECT TIMEDIFF(str.`signout_time`, str.`sign_time`) FROM `sign_time_record` str WHERE str.`sign_time_id` = #{signTimeId}))
+        WHERE sir.`sign_record_id` =
+              (SELECT str.`sign_record_id` FROM `sign_time_record` AS str WHERE str.`sign_time_id` = #{signTimeId})
+    </update>
+
+    <select id="querySignInTimes" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `sign_time_record` AS str
+                 INNER JOIN `sign_info_record` AS sir
+                            ON str.`sign_record_id` = sir.`sign_record_id`
+        WHERE sir.`sign_id` = #{signId}
+          AND sir.`sign_year`  = YEAR(NOW())
+          AND sir.`sign_month` = MONTH(NOW())
+          AND sir.`sign_day`   = DAY(NOW())
+          AND str.`time_quantum_id` =
+            (
+        SELECT CASE
+            WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 1)
+            AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 1)
+            THEN 1
+            WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 2)
+            AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 2)
+            THEN 2
+            WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 3)
+            AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 3)
+            THEN 3
+            WHEN TIME(NOW()) &gt;= (SELECT start_time FROM `time_quantum` WHERE time_quantum_id = 4)
+            AND  TIME(NOW()) &lt;= (SELECT end_time   FROM `time_quantum` WHERE time_quantum_id = 4)
+            THEN 4
+            ELSE 1 END
+            )
+    </select>
+
+    <update id="signOutStop">
+        UPDATE `sign_time_record`
+        SET signout_situation_id = 2
+        WHERE signout_situation_id = 1
+    </update>
+
+    <select id="yearSignOutTable" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(CONCAT(#{year},"-",sir.sign_month,"-",sir.sign_day), '%Y-%m-%d') AS DATE, COUNT(DISTINCT str.`time_quantum_id`) AS COUNT
+        FROM `sign_info` AS si
+            INNER JOIN `sign_info_record` AS sir
+        ON si.sign_id = sir.sign_id
+            INNER JOIN `sign_time_record` AS str
+            ON sir.sign_record_id = str.sign_record_id
+        WHERE si.user_id = #{userId}
+          AND sir.sign_year = #{year}
+          AND str.`signout_situation_id` = 3
+        GROUP BY sir.sign_month,sir.sign_day
+    </select>
+
+    <select id="queryOneDaySignInSituation" resultType="cn.jsu.projectmanage.pojo.vo.EachDaySignSituationVo">
+        SELECT uss.user_id, uss.`user_name`, uss.`user_account`,
+        CONCAT(MAX(uss.morning_in),'->',IFNULL(MAX(uss.morning_out),"未签退")) AS morning,
+        CONCAT(MAX(uss.nooning_in),'->',IFNULL(MAX(uss.nooning_out),"未签退")) AS nooning,
+        CONCAT(MAX(uss.afternoon_in),'->',IFNULL(MAX(uss.afternoon_out),"未签退")) AS afternoon,
+        CONCAT(MAX(uss.evening_in),'->',IFNULL(MAX(uss.evening_out),"未签退")) AS evening,
+        uss.`absence_reason`,uss.`total_sign_time`
+        FROM(
+        SELECT ui.`user_id`,ui.`user_name`, ui.`user_account`,
+        IF(str.`time_quantum_id` = 1,str.`sign_time`,NULL) AS morning_in,
+        IF(str.`time_quantum_id` = 1,str.`signout_time`,NULL) AS morning_out,
+        IF(str.`time_quantum_id` = 2,str.`sign_time`,NULL) AS nooning_in,
+        IF(str.`time_quantum_id` = 2,str.`signout_time`,NULL) AS nooning_out,
+        IF(str.`time_quantum_id` = 3,str.`sign_time`,NULL) AS afternoon_in,
+        IF(str.`time_quantum_id` = 3,str.`signout_time`,NULL) AS afternoon_out,
+        IF(str.`time_quantum_id` = 4,str.`sign_time`,NULL) AS evening_in,
+        IF(str.`time_quantum_id` = 4,str.`signout_time`,NULL) AS evening_out,
+        sir.`absence_reason`, IFNULL(sir.`total_sign_time`, 0) AS total_sign_time
+        FROM `user_info` AS ui
+        LEFT JOIN `sign_info` AS si
+        ON ui.`user_id` = si.`user_id`
+        LEFT JOIN
+        (
+        SELECT sir.`sign_id`,sir.`sign_record_id`, sir.`absence_reason`, sir.`total_sign_time`
+        FROM `sign_info_record` AS sir
+        WHERE sir.`sign_year` = DATE_FORMAT(#{date},"%Y")
+        AND sir.`sign_month`  = DATE_FORMAT(#{date},"%m")
+        AND sir.`sign_day`    = DATE_FORMAT(#{date},"%d")
+        ) AS sir
+        ON si.`sign_id` = sir.`sign_id`
+        LEFT JOIN `sign_time_record` AS str
+        ON sir.`sign_record_id` = str.`sign_record_id`
+        <if test="userId !=null">
+            WHERE ui.`user_id` = #{userId}
+        </if>
+        ) AS uss
+        GROUP BY uss.`user_id`
+        ORDER BY uss.total_sign_time
+        <if test="pageOffset != null and limit != null">
+            LIMIT #{pageOffset},#{limit}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="Integer">
+        SELECT COUNT(*)
+        FROM `user_info`
+    </select>
+
+    <update id="updateAbsentCause">
+        UPDATE `sign_info_record` AS sir
+            INNER JOIN `sign_info` AS si
+        ON si.`sign_id` = sir.`sign_id`
+            SET absence_reason = #{absenceReason}
+        WHERE si.`user_id` = #{userId}
+          AND sir.`sign_year` = DATE_FORMAT(#{date},"%Y")
+          AND sir.`sign_month`= DATE_FORMAT(#{date},"%m")
+          AND sir.`sign_day`  = DATE_FORMAT(#{date},"%d")
+    </update>
+</mapper>

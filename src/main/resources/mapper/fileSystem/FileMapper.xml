@@ -1,0 +1,73 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="cn.jsu.projectmanage.dao.fileSystem.FileDao">
+
+    <insert id="insertFile" parameterType="cn.jsu.projectmanage.pojo.dto.FileInfo">
+        INSERT INTO file(`file_name`,`file_type`,`url`,`size`,`create_time`)
+        VALUES (#{fileName},#{fileType},#{url},#{size},#{createTime})
+    </insert>
+
+    <delete id="deleteFile" >
+        DELETE FROM `file`
+        WHERE `url` = #{url}
+    </delete>
+
+    <insert id="createCatalogue">
+        INSERT `libary_catalogue` (
+                `catalogue_name`
+                <if test="parentId != 0">,`parent_id`</if>
+                )
+        VALUES (
+                #{catalogueName}
+                <if test="parentId != 0">, #{parentId}</if>
+                )
+    </insert>
+
+    <update id="updateCatalogue">
+        UPDATE `libary_catalogue` AS lc
+        SET lc.`catalogue_name` = #{catalogueName}
+        WHERE lc.`catalogue_id` = #{catalogueId}
+    </update>
+
+    <delete id="deleteCatalogue" parameterType="Integer">
+        DELETE FROM `libary_catalogue`
+        WHERE `catalogue_id` IN
+              (SELECT t.`catalogue_id`
+               FROM(SELECT `catalogue_id`
+                    FROM `libary_catalogue`
+                    WHERE FIND_IN_SET(`parent_id`, getChildList(#{catalogueId}))) AS t)
+    </delete>
+
+    <select id="queryCatalogueByCatalogue" resultType="cn.jsu.projectmanage.pojo.dto.CatalogueInfo">
+        SELECT lc.`catalogue_id`, lc.`catalogue_name`, lc.`parent_id`
+        FROM `libary_catalogue` AS lc
+        WHERE FIND_IN_SET(lc.`parent_id`, getChildList(#{catalogueId}))
+    </select>
+
+    <select id="queryFileByCatalogue" resultType="cn.jsu.projectmanage.pojo.dto.FileInfo">
+        SELECT f.`file_id`, f.`file_name`, f.`file_type`, f.`create_time`, f.`url`, f.`size`
+        FROM `catalogue_file` AS cf
+                 INNER JOIN `file` AS f ON cf.`file_id` = f.`file_id`
+        WHERE cf.`catelogue_id` = #{catalogueId}
+    </select>
+
+    <select id="queryFileByUrl" resultType="cn.jsu.projectmanage.pojo.dto.FileInfo">
+        SELECT f.`file_id`, f.`file_name`, f.`file_type`, f.`create_time`, f.`url`, f.`size`
+        FROM `file` AS f
+        WHERE f.`url` = #{url}
+    </select>
+
+    <insert id="insertCatalogueFile">
+        INSERT `catalogue_file` (`catelogue_id`, `file_id`)
+        VALUES(#{catalogueId}, #{fileId})
+    </insert>
+
+    <delete id="deleteCatalogueFile">
+        DELETE cf
+        FROM `catalogue_file` AS cf
+        WHERE cf.`catelogue_id` = #{catalogueId}
+        AND cf.`file_id` = #{fileId}
+    </delete>
+</mapper>
